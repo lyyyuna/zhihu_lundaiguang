@@ -16,7 +16,8 @@ class ZhihuClient():
         self._client = HttpClient(client)
         self._email = email
         self._password = password
-
+        self._finish = False
+        self._commenttime = '1970'
         self._imgurl = asyncio.Queue()
 
     async def _login(self):
@@ -37,8 +38,9 @@ class ZhihuClient():
             data = {'_xsrf':self._xsrf, 'start':start}
             dic = await self._client.post_json(api_url, data=data)
             if dic == None:
-                print ('网络错误')
-                # break
+                print ('获取更多状态网络错误')
+                continue
+
             feed_num = dic['msg'][0]
             soup = BeautifulSoup(dic['msg'][1], 'html.parser')
             acts = soup.find_all('div', class_='zm-profile-section-item zm-item clearfix')
@@ -78,18 +80,15 @@ class ZhihuClient():
     async def _analyze_comments(self, url):
         dic = await self._client.get_json(url)
         if dic == None:
-            print ('网络错误')
+            print ('获取评论网络错误')
             return False
 
         data = dic['data']
         count = 0
         for comment in data:
+            self._commenttime = comment['createdTime']
             for keyword in keywords.keywords:
                 if comment['content'].find(keyword) != -1:
-                    # print ()
-                    # print (keyword)
-                    # print (comment['content'])
-                    # print ()
                     count += 1
         if count >= 2:
             return True
@@ -103,8 +102,19 @@ class ZhihuClient():
             url = await self._imgurl.get()
             if url == 'the end':
                 print ('下载完毕')
+                self._finish = True
                 break
             print ('正在下载第 %s 张图片。。。' % self._count)
             await self._client.downloadfile(url, './img/' + str(self._count) + '.jpg')
             await asyncio.sleep(config.img_interval)
             self._count += 1
+
+    async def monitor(self):
+        while True:
+            if self._finish == True:
+                break
+            print ()
+            print ('目前下载队列还有：%s 个。' % self._imgurl.qsize())
+            print ('大概分析到的赞的时间：' + self._commenttime)
+            print ()
+            await asyncio.sleep(20)
