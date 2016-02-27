@@ -108,4 +108,6 @@ $RECYCLE.BIN/
 *.lnk
 
 
-config.py
+auth.py
+img
+*.jpg

@@ -21,22 +21,13 @@ class HttpClient:
 
     async def get_json(self, url, params=None):
         try:
-            async with await self.__client.get(url, params=params) as r:
-                text = await r.text(encoding='utf-8')
-                return json.loads(text)
-        except aiohttp.errors.DisconnectedError:
-            return None
-        except aiohttp.errors.ClientResponseError:
-            return None
-
-    async def get_json_timeout(self, url, params=None):
-        try:
-            with aiohttp.Timeout(2):
+            with aiohttp.Timeout(3):
                 async with await self.__client.get(url, params=params) as r:
                     text = await r.text(encoding='utf-8')
                     return json.loads(text)
         except:
             return None
+
 
     async def post(self, url, data, params=None):
         try:
@@ -49,23 +40,23 @@ class HttpClient:
 
     async def post_json(self, url, data, params=None):
         try:
-            async with await self.__client.post(url, params=params, data=data) as r:
-                text = await r.text(encoding='utf-8')
-                return json.loads(text)
-        except aiohttp.errors.DisconnectedError:
+            with aiohttp.Timeout(3):
+                async with await self.__client.post(url, params=params, data=data) as r:
+                    text = await r.text(encoding='utf-8')
+                    return json.loads(text)
+        except:
             return None
 
-    async def downloadfile(self, url, data, filename):
+    async def downloadfile(self, url, filename):
         try:
-            async with await self.__client.post(url, data=data) as r:
-                with open(filename, 'wb') as fd:
-                    while True:
-                        chunk = await r.content.read(512)
-                        if not chunk:
-                            break
-                        fd.write(chunk)
-                return True
-        except aiohttp.errors.DisconnectedError:
-            return False
-        except aiohttp.errors.ClientResponseError:
+            with aiohttp.Timeout(3):
+                async with await self.__client.get(url) as r:
+                    with open(filename, 'wb') as fd:
+                        while True:
+                            chunk = await r.content.read(4096)
+                            if not chunk:
+                                break
+                            fd.write(chunk)
+                    return True
+        except:
             return False

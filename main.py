@@ -13,11 +13,11 @@ logger.setLevel(logging.DEBUG)
 import asyncio
 import aiohttp
 from zhihuclient import ZhihuClient
-import config
+import auth
 
 with aiohttp.ClientSession() as client:
-    lunzi = ZhihuClient(client, config.email, config.password)
+    lunzi = ZhihuClient(client, auth.email, auth.password)
 
-    tasks = [lunzi.crawl_voteup_answer()]
-    
+    tasks = [lunzi.crawl_voteup_answer(), lunzi.download_image()]
+
     asyncio.get_event_loop().run_until_complete(asyncio.wait(tasks))
