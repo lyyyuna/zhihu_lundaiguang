@@ -1,31 +1,49 @@
 from httpclient import HttpClient
 import asyncio
+import aiohttp
 from bs4 import BeautifulSoup
 import keywords
 import config
 import html
 import os
+import re
+import requests
 
 ZHIHU_URL = 'https://www.zhihu.com'
 LOGIN_URL = ZHIHU_URL + '/login/email'
 VCZH_URL = ZHIHU_URL + '/people/excited-vczh'
 
+Default_Header = {'X-Requested-With': 'XMLHttpRequest',
+                  'Referer': 'https://www.zhihu.com',
+                  'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; '
+                                'rv:39.0) Gecko/20100101 Firefox/39.0',
+                  'Host': 'www.zhihu.com'}
+
 class ZhihuClient():
-    def __init__(self, client, email, password):
+    def __init__(self, client, email, phone_num, password):
         self._session = client
         self._client = HttpClient(client)
         self._email = email
+        self._phone_num = phone_num
         self._password = password
         self._finish = False
         self._commenttime = '1970'
         self._imgurl = asyncio.Queue()
 
     async def _login(self):
-        data = {'email': self._email, 'password': self._password, 'remember_me': 'true'}
+        r = requests.get(ZHIHU_URL, headers=Default_Header)
+        results = re.compile(r"\<input\stype=\"hidden\"\sname=\"_xsrf\"\svalue=\"(\S+)\"", re.DOTALL).findall(r.text)
+        self._xsrf = results[0]
+        print (self._xsrf)
+        if self._email != '':
+            data = {'email': self._email, 'password': self._password, 'remember_me': 'true', '_xsrf': self._xsrf}
+        else:
+            data = {'phone_num': self._phone_num, 'password': self._password, 'remember_me': 'true', '_xsrf': self._xsrf}
+        print (data)
         dic = await self._client.post_json(LOGIN_URL, data=data)
         await self._client.get(ZHIHU_URL)
         self._xsrf = self._session.cookies['_xsrf'].value
-        print (dic['msg'])
+        print (dic['r'])
         print (self._xsrf)
 
     async def crawl_voteup_answer(self):
@@ -90,7 +108,7 @@ class ZhihuClient():
             for keyword in keywords.keywords:
                 if comment['content'].find(keyword) != -1:
                     count += 1
-        if count >= 2:
+        if count >= 3:
             return True
         return False
 
@@ -100,14 +118,21 @@ class ZhihuClient():
         self._count = 1
         while True:
             url = await self._imgurl.get()
+            count = self._count
+            self._count += 1
+            print ('正在下载第 %s 张图片。。。' % count)
+            imgname = url.split('/')[-1]
+            # 避免重复下载
+            if os.path.exists('./img/' + imgname):
+                print ('第 %s 张图片已经下载过，不重复下载。。。' % count)
+                continue
             if url == 'the end':
                 print ('下载完毕')
                 self._finish = True
                 break
-            print ('正在下载第 %s 张图片。。。' % self._count)
-            await self._client.downloadfile(url, './img/' + str(self._count) + '.jpg')
+            await self._client.downloadfile(url, './img/' + imgname)
             await asyncio.sleep(config.img_interval)
-            self._count += 1
+
 
     async def monitor(self):
         while True:
