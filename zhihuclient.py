@@ -7,17 +7,10 @@ import config
 import html
 import os
 import re
-import requests
 
 ZHIHU_URL = 'https://www.zhihu.com'
 LOGIN_URL = ZHIHU_URL + '/login/email'
 VCZH_URL = ZHIHU_URL + '/people/excited-vczh'
-
-Default_Header = {'X-Requested-With': 'XMLHttpRequest',
-                  'Referer': 'https://www.zhihu.com',
-                  'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; '
-                                'rv:39.0) Gecko/20100101 Firefox/39.0',
-                  'Host': 'www.zhihu.com'}
 
 class ZhihuClient():
     def __init__(self, client, email, phone_num, password):
@@ -31,14 +24,14 @@ class ZhihuClient():
         self._imgurl = asyncio.Queue()
 
     async def _login(self):
-        r = requests.get(ZHIHU_URL, headers=Default_Header)
-        results = re.compile(r"\<input\stype=\"hidden\"\sname=\"_xsrf\"\svalue=\"(\S+)\"", re.DOTALL).findall(r.text)
-        self._xsrf = results[0]
-        print (self._xsrf)
+        # r = requests.get(ZHIHU_URL, headers=Default_Header)
+        # results = re.compile(r"\<input\stype=\"hidden\"\sname=\"_xsrf\"\svalue=\"(\S+)\"", re.DOTALL).findall(r.text)
+        # self._xsrf = results[0]
+        # print (self._xsrf)
         if self._email != '':
-            data = {'email': self._email, 'password': self._password, 'remember_me': 'true', '_xsrf': self._xsrf}
+            data = {'email': self._email, 'password': self._password, 'remember_me': 'true'}
         else:
-            data = {'phone_num': self._phone_num, 'password': self._password, 'remember_me': 'true', '_xsrf': self._xsrf}
+            data = {'phone_num': self._phone_num, 'password': self._password, 'remember_me': 'true'}
         print (data)
         dic = await self._client.post_json(LOGIN_URL, data=data)
         await self._client.get(ZHIHU_URL)
@@ -135,6 +128,10 @@ class ZhihuClient():
 
 
     async def monitor(self):
+        count = 1
+        more_interval = config.more_interval
+        comment_interval = config.comment_interval
+        img_interval = config.img_interval
         while True:
             if self._finish == True:
                 break
@@ -142,4 +139,15 @@ class ZhihuClient():
             print ('目前下载队列还有：%s 个。' % self._imgurl.qsize())
             print ('大概分析到的赞的时间：' + self._commenttime)
             print ()
+            count += 1
+            config.more_interval = more_interval
+            config.comment_interval = comment_interval
+            config.img_interval = img_interval
+            # 约 200s 后停 10s，避免知乎反爬虫
+            if count > 10:
+                count = 1
+                config.more_interval = 10
+                config.comment_interval = 10
+                print ('让爬虫休息一下。。。')
+
             await asyncio.sleep(20)
