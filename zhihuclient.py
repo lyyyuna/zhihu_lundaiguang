@@ -72,7 +72,7 @@ class ZhihuClient():
                 if HIT == False:
                     continue
                 # 获取回答
-                answer = act.find_all('textarea', class_='content hidden')
+                answer = act.find_all('textarea', class_='content')
                 if answer == []:
                     continue
                 answer[0] = html.unescape(answer[0].get_text())
